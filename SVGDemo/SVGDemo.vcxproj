@@ -171,6 +171,8 @@
     <ClCompile Include="SVGCircle.cpp" />
     <ClCompile Include="SVGEclipse.cpp" />
     <ClCompile Include="SVGElement.cpp" />
+    <ClCompile Include="SVGGroup.cpp" />
+    <ClCompile Include="SVGGroup.h" />
     <ClCompile Include="SVGHandler.cpp" />
     <ClCompile Include="SVGLine.cpp" />
     <ClCompile Include="SVGParser.cpp" />

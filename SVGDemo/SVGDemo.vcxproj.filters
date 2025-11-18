@@ -110,6 +110,12 @@
     <ClCompile Include="SVGHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SVGGroup.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SVGGroup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SVGDemo.rc">

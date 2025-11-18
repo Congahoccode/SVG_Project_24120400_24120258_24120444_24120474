@@ -11,6 +11,7 @@
 #include "SVGPolygon.h"
 #include "SVGPolyline.h"
 #include "SVGText.h"
+#include "SVGGroup.h"
 
 class SVGParser {
 private:
