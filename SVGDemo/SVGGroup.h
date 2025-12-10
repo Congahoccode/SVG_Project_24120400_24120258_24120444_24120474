@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "stdafx.h"
 #include "SVGElement.h"
 #include <vector>
@@ -11,16 +11,11 @@ class SVGGroup : public SVGElement
 {
 private:
     vector<SVGElement*> children;
-    Matrix localTransform;
 public:
     SVGGroup() {};
     ~SVGGroup() override;
 
-    void AddChild(SVGElement* element);
-    const vector<SVGElement*>& GetChildren() const;
-
-    void SetTransform(const Matrix& transform);
-    const Matrix& GetTransform() const;
+    void Parse(xml_node<>* node) override;
 
     void Draw(Graphics& g) override;
 };

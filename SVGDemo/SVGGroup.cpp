@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "SVGParser.h"
 #include "SVGGroup.h"
 
 
@@ -9,45 +10,34 @@ SVGGroup::~SVGGroup()
     children.clear();
 }
 
-void SVGGroup::AddChild(SVGElement* element)
+void SVGGroup::Parse(xml_node<>* node)
 {
-    if (element)
-        children.push_back(element);
-}
+    // tự gọi Parse() của SVGElement -> lấy fill/stroke/transform của nhóm
+    SVGElement::Parse(node);
 
-const vector<SVGElement*>& SVGGroup::GetChildren() const
-{
-    return children;
-}
-
-void SVGGroup::SetTransform(const Matrix& transform)
-{
-    REAL m[6];
-    transform.GetElements(m);
-    localTransform.SetElements(m[0], m[1], m[2], m[3], m[4], m[5]);
-}
-
-const Matrix& SVGGroup::GetTransform() const
-{
-    return localTransform;
+    // Parse các element con
+    for (auto* child = node->first_node(); child; child = child->next_sibling())
+    {
+        SVGElement* element = SVGParser::CreateElement(child);
+        if (element) {
+            element->InheritFrom(*this);  // kế thừa fill/stroke
+            element->Parse(child);        // parse thuộc tính riêng
+            children.push_back(element);
+        }
+    }
 }
 
 void SVGGroup::Draw(Graphics& g)
 {
-    // Lưu transform hiện tại
-    Matrix prevTransform;
-    g.GetTransform(&prevTransform);
+    auto state = g.Save();
 
-    // Áp transform cục bộ của nhóm
-    g.MultiplyTransform(&localTransform);
+    // áp dụng transform của group
+    g.MultiplyTransform(&transform);
 
-    // Duyệt và vẽ tất cả phần tử con
-    for (auto child : children)
-    {
-        if (child)
-            child->Draw(g);
+    // vẽ các children
+    for (auto* c : children) {
+        c->Draw(g);
     }
 
-    // Khôi phục transform ban đầu
-    g.SetTransform(&prevTransform);
+    g.Restore(state);
 }
