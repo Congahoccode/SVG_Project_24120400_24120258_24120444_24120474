@@ -1,5 +1,6 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "SVGParser.h"
+#include "SVGLinearGradient.h"
 #include <iostream>
 
 bool SVGParser::ParseFile(const std::string& filePath) 
@@ -14,11 +15,29 @@ bool SVGParser::ParseFile(const std::string& filePath)
     rapidxml::xml_node<>* root = doc.first_node("svg");
     if (!root) return false;
 
+	// Parse defs first
+    if (auto* defs = root->first_node("defs"))
+    {
+        for (auto* node = defs->first_node(); node; node = node->next_sibling())
+        {
+            std::string name = node->name();
+
+            if (name == "linearGradient")
+            {
+                SVGLinearGradient* grad = new SVGLinearGradient();
+                grad->Parse(node);
+                document.AddLinearGradient(grad);
+            }
+        }
+    }
+
+	// Parse các phần tử con của <svg>
     for (auto* node = root->first_node(); node; node = node->next_sibling()) 
     {
         SVGElement* element = CreateElement(node);
         if (element) 
         {
+			element->SetDocument(&document);
             element->Parse(node);
             elements.push_back(element);
         }

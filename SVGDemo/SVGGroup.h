@@ -1,12 +1,13 @@
 ﻿#pragma once
 #include "stdafx.h"
 #include "SVGElement.h"
-#include "SVGParser.h" // Cần để gọi SVGParser::CreateElement
 #include <vector>
 #include <string>
 #include <gdiplus.h>
 using namespace Gdiplus;
 using namespace std;
+
+class SVGParser; // Forward declaration
 
 class SVGGroup : public SVGElement
 {

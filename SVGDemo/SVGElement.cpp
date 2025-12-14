@@ -1,5 +1,6 @@
 ﻿#include "stdafx.h"
 #include "SVGElement.h"
+#include "SVGDocument.h"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -39,23 +40,43 @@ void SVGElement::Parse(xml_node<>* node)
         strokeOpacity = (float)atof(attr->value());
 
     // 2. Parse Fill Color
+    // ===== PARSE FILL =====
     if (auto attr = node->first_attribute("fill"))
     {
         string s = attr->value();
 
-        // --- BƯỚC MỚI: Dọn sạch khoảng trắng thừa đầu/cuối chuỗi ---
-        while (!s.empty() && isspace(s.front())) s.erase(0, 1);
-        while (!s.empty() && isspace(s.back())) s.pop_back();
+        // --- Trim whitespace ---
+        while (!s.empty() && isspace((unsigned char)s.front())) s.erase(0, 1);
+        while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
 
-        if (s == "none") fillColor = Color(0, 0, 0, 0);
-        else if (s.find("url") != string::npos) {
-            // Gradient -> Vàng cam
-            fillColor = Color((BYTE)(fillOpacity * 255), 255, 192, 0);
+        // ===== 1. fill="none" =====
+        if (s == "none") {
+            fillType = FillType::None;
+            fillColor = Color(0, 0, 0, 0);
         }
+
+        // ===== 2. fill="url(#id)" → Linear Gradient =====
+        else if (s.rfind("url(", 0) == 0)
+        {
+            fillType = FillType::LinearGradient;
+
+            size_t start = s.find('#');
+            size_t end = s.find(')', start);
+
+            if (start != string::npos && end != string::npos && document)
+            {
+                string id = s.substr(start + 1, end - start - 1);
+                fillGradient = document->GetLinearGradient(id);
+            }
+        }
+
+        // ===== 3. fill="#RRGGBB" hoặc "#RGB" =====
         else if (!s.empty() && s[0] == '#') {
-            // Hex: #RRGGBB hoặc #RGB
+            fillType = FillType::Solid;
+
             string hex = s.substr(1);
             int r = 0, g = 0, b = 0;
+
             if (hex.length() >= 6) {
                 r = Hex2Int(hex[0]) * 16 + Hex2Int(hex[1]);
                 g = Hex2Int(hex[2]) * 16 + Hex2Int(hex[3]);
@@ -66,16 +87,37 @@ void SVGElement::Parse(xml_node<>* node)
                 g = Hex2Int(hex[1]) * 17;
                 b = Hex2Int(hex[2]) * 17;
             }
-            fillColor = Color((BYTE)(fillOpacity * 255), r, g, b);
+
+            fillColor = Color(
+                (BYTE)(fillOpacity * 255),
+                r, g, b
+            );
         }
-        else if (s.find("rgb") != string::npos) {
-            // RGB(r, g, b)
+
+        // ===== 4. fill="rgb(r,g,b)" =====
+        else if (s.rfind("rgb", 0) == 0) {
+            fillType = FillType::Solid;
+
             vector<float> vals;
-            GetNumbers(s, vals); // Tận dụng hàm GetNumbers để lấy r,g,b
-            if (vals.size() >= 3)
-                fillColor = Color((BYTE)(fillOpacity * 255), (int)vals[0], (int)vals[1], (int)vals[2]);
+            GetNumbers(s, vals); // lấy r, g, b
+
+            if (vals.size() >= 3) {
+                fillColor = Color(
+                    (BYTE)(fillOpacity * 255),
+                    (BYTE)vals[0],
+                    (BYTE)vals[1],
+                    (BYTE)vals[2]
+                );
+            }
+        }
+
+        // ===== 5. fallback =====
+        else {
+            fillType = FillType::None;
+            fillColor = Color(0, 0, 0, 0);
         }
     }
+
 
     // 3. Parse Stroke Color
     if (auto attr = node->first_attribute("stroke"))
@@ -99,6 +141,10 @@ void SVGElement::Parse(xml_node<>* node)
 
     if (auto attr = node->first_attribute("stroke-width"))
         strokeWidth = (float)atof(attr->value());
+
+    if (auto attr = node->first_attribute("stroke-miterlimit")) 
+        strokeMiterLimit = atof(attr->value());
+    
 
     // 4. Transform (Không đổi)
     if (auto attr = node->first_attribute("transform"))
@@ -142,4 +188,16 @@ void SVGElement::InheritFrom(const SVGElement& parent)
     this->strokeColor = parent.strokeColor;
     this->strokeWidth = parent.strokeWidth;
     this->strokeOpacity = parent.strokeOpacity;
+    this->strokeMiterLimit = parent.strokeMiterLimit;
+    this->fillType = parent.fillType;
+    this->fillGradient = parent.fillGradient;
+    this->document = parent.document;
+    // Use Clone to copy the transform matrix since assignment is inaccessible
+    Matrix* clonedMatrix = parent.transform.Clone();
+    if (clonedMatrix != nullptr)
+    {
+        this->transform.Reset();
+        this->transform.Multiply(clonedMatrix, MatrixOrderPrepend);
+        delete clonedMatrix;
+    }
 }

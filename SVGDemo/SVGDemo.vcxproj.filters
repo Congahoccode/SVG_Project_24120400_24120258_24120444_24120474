@@ -69,6 +69,12 @@
     <ClInclude Include="SVGPath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SVGDocument.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SVGLinearGradient.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -120,6 +126,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SVGPath.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SVGDocument.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SVGLinearGradient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

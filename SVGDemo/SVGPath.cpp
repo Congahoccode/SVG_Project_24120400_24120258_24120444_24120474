@@ -191,6 +191,7 @@ void SVGPath::Draw(Graphics& g)
     if (strokeOpacity > 0 && strokeWidth > 0)
     {
         Pen pen(Color((BYTE)(strokeOpacity * 255), strokeColor.GetR(), strokeColor.GetG(), strokeColor.GetB()), strokeWidth);
+        pen.SetMiterLimit(strokeMiterLimit);
         g.DrawPath(&pen, &path);
     }
 

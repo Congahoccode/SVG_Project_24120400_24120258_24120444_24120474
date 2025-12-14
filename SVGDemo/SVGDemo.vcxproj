@@ -48,7 +48,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -150,10 +150,12 @@
   <ItemGroup>
     <ClInclude Include="MainApp.h" />
     <ClInclude Include="SVGCircle.h" />
+    <ClInclude Include="SVGDocument.h" />
     <ClInclude Include="SVGEclipse.h" />
     <ClInclude Include="SVGElement.h" />
     <ClInclude Include="SVGHandler.h" />
     <ClInclude Include="SVGLine.h" />
+    <ClInclude Include="SVGLinearGradient.h" />
     <ClInclude Include="SVGParser.h" />
     <ClInclude Include="rapidxml.hpp" />
     <ClInclude Include="resource.h" />
@@ -170,12 +172,14 @@
   <ItemGroup>
     <ClCompile Include="MainApp.cpp" />
     <ClCompile Include="SVGCircle.cpp" />
+    <ClCompile Include="SVGDocument.cpp" />
     <ClCompile Include="SVGEclipse.cpp" />
     <ClCompile Include="SVGElement.cpp" />
     <ClCompile Include="SVGGroup.cpp" />
     <ClCompile Include="SVGGroup.h" />
     <ClCompile Include="SVGHandler.cpp" />
     <ClCompile Include="SVGLine.cpp" />
+    <ClCompile Include="SVGLinearGradient.cpp" />
     <ClCompile Include="SVGParser.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

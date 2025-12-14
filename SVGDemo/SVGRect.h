@@ -11,4 +11,3 @@ public:
     void Parse(rapidxml::xml_node<>* node) override;
     void Draw(Gdiplus::Graphics& g) override;
 };
-#pragma once
