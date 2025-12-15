@@ -13,6 +13,7 @@ using namespace Gdiplus;
 
 enum class FillType {
     None,
+    Unset,
     Solid,
     LinearGradient
 };
@@ -32,7 +33,7 @@ protected:
     float strokeMiterLimit;
     SVGDocument* document;
     SVGLinearGradient* fillGradient;
-    FillType fillType;
+    FillType fillType = FillType::None;
     Brush* CreateFillBrush(const RectF& bounds);
     Pen* CreateStrokePen();
 
@@ -47,7 +48,7 @@ public:
     {
 		document = nullptr;
         fillGradient = nullptr;
-        fillType = FillType::None;
+        fillType = FillType::Unset;
 		transform.Reset();
     }
 

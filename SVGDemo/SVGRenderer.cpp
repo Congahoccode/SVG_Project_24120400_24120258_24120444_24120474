@@ -11,7 +11,7 @@ void SVGRenderer::Render(Graphics& g, const vector<SVGElement*>& elements)
 {
     // Clear previous drawing, fill background
     g.Clear(backgroundColor);
-
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
     /*
     // Save current graphics state
     GraphicsState state = g.Save();
