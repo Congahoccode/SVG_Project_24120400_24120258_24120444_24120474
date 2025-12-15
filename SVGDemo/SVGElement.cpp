@@ -221,28 +221,85 @@ void SVGElement::Parse(xml_node<>* node)
     if (auto attr = node->first_attribute("stroke"))
     {
         string s = attr->value();
-        // Dọn khoảng trắng
-        while (!s.empty() && isspace(s.front())) s.erase(0, 1);
 
-        if (s == "none") strokeColor = Color(0, 0, 0, 0);
-        else if (!s.empty() && s[0] == '#') {
+        // Trim whitespace
+        while (!s.empty() && isspace((unsigned char)s.front())) s.erase(0, 1);
+        while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
+
+        // ===== 1. stroke="none" =====
+        if (s == "none")
+        {
+            strokeColor = Color(0, 0, 0, 0);
+        }
+
+        // ===== 2. stroke="#RRGGBB" / "#RGB" =====
+        else if (!s.empty() && s[0] == '#')
+        {
             string hex = s.substr(1);
             int r = 0, g = 0, b = 0;
+
             if (hex.length() >= 6) {
                 r = Hex2Int(hex[0]) * 16 + Hex2Int(hex[1]);
                 g = Hex2Int(hex[2]) * 16 + Hex2Int(hex[3]);
                 b = Hex2Int(hex[4]) * 16 + Hex2Int(hex[5]);
             }
-            strokeColor = Color((BYTE)(strokeOpacity * 255), r, g, b);
+            else if (hex.length() >= 3) {
+                r = Hex2Int(hex[0]) * 17;
+                g = Hex2Int(hex[1]) * 17;
+                b = Hex2Int(hex[2]) * 17;
+            }
+
+            strokeColor = Color(
+                (BYTE)(strokeOpacity * 255),
+                r, g, b
+            );
+        }
+
+        // ===== 3. stroke="rgb(r,g,b)" =====
+        else if (s.rfind("rgb", 0) == 0)
+        {
+            vector<float> vals;
+            GetNumbers(s, vals);
+
+            if (vals.size() >= 3)
+            {
+                strokeColor = Color(
+                    (BYTE)(strokeOpacity * 255),
+                    (BYTE)vals[0],
+                    (BYTE)vals[1],
+                    (BYTE)vals[2]
+                );
+            }
+        }
+
+        // ===== 4. stroke="black", "red", ... =====
+        else
+        {
+            Color namedC;
+            if (GetNamedColor(s, namedC))
+            {
+                strokeColor = Color(
+                    (BYTE)(strokeOpacity * 255),
+                    namedC.GetR(),
+                    namedC.GetG(),
+                    namedC.GetB()
+                );
+            }
+            else
+            {
+                // Fallback: không vẽ stroke
+                strokeColor = Color(0, 0, 0, 0);
+            }
         }
     }
+
 
     if (auto attr = node->first_attribute("stroke-width"))
         strokeWidth = (float)atof(attr->value());
 
-    if (auto attr = node->first_attribute("stroke-miterlimit")) 
+    if (auto attr = node->first_attribute("stroke-miterlimit"))
         strokeMiterLimit = atof(attr->value());
-    
+
 
     // 4. Transform (Không đổi)
     if (auto attr = node->first_attribute("transform"))
@@ -264,15 +321,15 @@ void SVGElement::Parse(xml_node<>* node)
             if (command == "translate" && vals.size() >= 1) {
                 float dx = vals[0];
                 float dy = (vals.size() > 1) ? vals[1] : 0;
-                transform.Translate(dx, dy, MatrixOrderAppend);
+                transform.Translate(dx, dy, MatrixOrderPrepend);
             }
             else if (command == "rotate" && vals.size() >= 1) {
-                transform.Rotate(vals[0], MatrixOrderAppend);
+                transform.Rotate(vals[0], MatrixOrderPrepend);
             }
             else if (command == "scale" && vals.size() >= 1) {
                 float sx = vals[0];
                 float sy = (vals.size() > 1) ? vals[1] : sx;
-                transform.Scale(sx, sy, MatrixOrderAppend);
+                transform.Scale(sx, sy, MatrixOrderPrepend);
             }
             pos = closeParen + 1;
         }
@@ -305,7 +362,7 @@ void SVGElement::InheritFrom(const SVGElement& parent)
 
 Brush* SVGElement::CreateFillBrush(const RectF& bounds)
 {
-    if (fillType == FillType::Unset) return nullptr;
+    if (fillType == FillType::None) return nullptr;
 
     // ===== SOLID COLOR =====
     if (fillType == FillType::Solid)

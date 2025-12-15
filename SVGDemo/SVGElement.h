@@ -37,6 +37,8 @@ protected:
     Brush* CreateFillBrush(const RectF& bounds);
     Pen* CreateStrokePen();
 
+    virtual RectF GetBounds() { return RectF(0, 0, 0, 0); }
+
 public:
     SVGElement()
         : fillColor(Color(255, 0, 0, 0)),

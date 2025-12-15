@@ -1,64 +1,73 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "SVGPolygon.h"
+#include <iostream>
 #include <sstream>
-#include <string>
 
 using namespace std;
 using namespace Gdiplus;
-using namespace rapidxml;
 
-void SVGPolygon::Parse(xml_node<>* node) 
+// Hàm tách số (Copy từ SVGElement để dùng nội bộ)
+static void GetPoints(const string& s, vector<PointF>& points)
 {
-    SVGElement::Parse(node);
-    for (auto* a = node->first_attribute(); a; a = a->next_attribute()) 
+    string temp = "";
+    vector<float> coords;
+
+    for (char c : s)
     {
-        string n = a->name();
-        if (n == "points") 
+        // Chấp nhận số, dấu chấm, dấu trừ, e (khoa học)
+        if (isdigit(c) || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E')
         {
-            stringstream ss(a->value());
-            float x, y;
-            char comma;
-            while (ss >> x) 
-            {
-                if (ss.peek() == ',') ss >> comma;
-                if (ss >> y) points.push_back(PointF(x, y));
+            temp += c;
+        }
+        else
+        {
+            if (!temp.empty()) {
+                try { coords.push_back(stof(temp)); }
+                catch (...) {}
+                temp = "";
             }
         }
+    }
+    if (!temp.empty()) { try { coords.push_back(stof(temp)); } catch (...) {} }
+
+    // Gom cứ 2 số thành 1 điểm (x, y)
+    for (size_t i = 0; i + 1 < coords.size(); i += 2)
+    {
+        points.push_back(PointF(coords[i], coords[i + 1]));
+    }
+}
+
+void SVGPolygon::Parse(rapidxml::xml_node<>* node)
+{
+    // 1. Parse các thuộc tính chung (Màu, Stroke, Transform...)
+    SVGElement::Parse(node);
+
+    // 2. Parse danh sách điểm
+    if (auto attr = node->first_attribute("points"))
+    {
+        string s = attr->value();
+        GetPoints(s, points);
     }
 }
 
 void SVGPolygon::Draw(Graphics& g)
 {
-    if (points.size() < 3) return;
+    if (points.empty()) return;
 
-    auto state = g.Save();
+    GraphicsState state = g.Save();
+
+    // QUAN TRỌNG: Áp dụng transform của chính Polygon (nếu có)
     g.MultiplyTransform(&transform);
 
-    // ===== Compute bounds =====
-    float minX = points[0].X;
-    float minY = points[0].Y;
-    float maxX = points[0].X;
-    float maxY = points[0].Y;
-
-    for (size_t i = 1; i < points.size(); ++i)
-    {
-        minX = min(minX, points[i].X);
-        minY = min(minY, points[i].Y);
-        maxX = max(maxX, points[i].X);
-        maxY = max(maxY, points[i].Y);
-    }
-
-    RectF bounds(minX, minY, maxX - minX, maxY - minY);
-
-    // ===== FILL =====
-    if (Brush* brush = CreateFillBrush(bounds))
+    // 1. Tô màu (Fill)
+    if (auto* brush = CreateFillBrush(GetBounds())) // Hàm này có trong SVGElement.cpp
     {
         g.FillPolygon(brush, points.data(), (INT)points.size());
         delete brush;
     }
 
-    // ===== STROKE =====
-    if (Pen* pen = CreateStrokePen())
+    // 2. Vẽ viền (Stroke)
+    if (auto* pen = CreateStrokePen()) // Hàm này có trong SVGElement.cpp
     {
         g.DrawPolygon(pen, points.data(), (INT)points.size());
         delete pen;
