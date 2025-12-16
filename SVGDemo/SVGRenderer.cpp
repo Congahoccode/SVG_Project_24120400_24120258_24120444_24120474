@@ -12,16 +12,6 @@ void SVGRenderer::Render(Graphics& g, const vector<SVGElement*>& elements)
     // Clear previous drawing, fill background
     g.Clear(backgroundColor);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
-    /*
-    // Save current graphics state
-    GraphicsState state = g.Save();
-
-    // Apply renderer-wide transforms (scale, offset)
-    Matrix transform;
-    transform.Scale(scale, scale);
-    transform.Translate(offset.X, offset.Y, MatrixOrderAppend);
-    g.MultiplyTransform(&transform);
-    */
 
     g.TranslateTransform(offset.X, offset.Y);
     g.ScaleTransform(zoomFactor, zoomFactor);
@@ -36,9 +26,6 @@ void SVGRenderer::Render(Graphics& g, const vector<SVGElement*>& elements)
             e->Draw(g);
         }
     }
-
-    // Restore original graphics state
-    //g.Restore(state);
 }
 
 void SVGRenderer::Zoom(float factor)

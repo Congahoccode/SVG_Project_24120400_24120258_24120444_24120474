@@ -11,7 +11,6 @@
 using namespace std;
 using namespace Gdiplus;
 
-// --- Helper: Tách số từ chuỗi Transform ---
 static void GetNumbers(const string& s, vector<float>& numbers)
 {
     string temp = "";
@@ -26,10 +25,10 @@ static void GetNumbers(const string& s, vector<float>& numbers)
     if (!temp.empty()) { try { numbers.push_back(stof(temp)); } catch (...) {} }
 }
 
-// --- HÀM TRA CỨU MÀU CHUẨN SVG/CSS (Full List) ---
+// HÀM TRA CỨU MÀU CHUẨN SVG
 static bool GetNamedColor(string name, Color& outColor)
 {
-    // 1. Chuyển tên về chữ thường để không phân biệt hoa thường (Red == red)
+    // 1. Chuyển tên về chữ thường để không phân biệt hoa thường
     transform(name.begin(), name.end(), name.begin(), ::tolower);
 
     // 2. Bảng màu chuẩn W3C (Static để chỉ khởi tạo 1 lần duy nhất)
@@ -86,7 +85,7 @@ static bool GetNamedColor(string name, Color& outColor)
         {"yellowgreen", 0x9ACD32}
     };
 
-    // Tìm kiếm trong map (Tốc độ cực nhanh)
+    // Tìm kiếm trong map
     auto it = colorMap.find(name);
     if (it != colorMap.end()) {
         // Tách Hex 0xRRGGBB thành R, G, B
@@ -95,7 +94,7 @@ static bool GetNamedColor(string name, Color& outColor)
         BYTE g = (hex >> 8) & 0xFF;
         BYTE b = hex & 0xFF;
 
-        // Trả về color với Alpha mặc định là 255 (sẽ được override bởi opacity sau)
+        // Trả về color với Alpha mặc định
         outColor = Color(255, r, g, b);
         return true;
     }
@@ -103,7 +102,6 @@ static bool GetNamedColor(string name, Color& outColor)
     return false;
 }
 
-// --- Helper: Chuyển Hex sang Int thủ công ---
 static int Hex2Int(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -120,22 +118,22 @@ void SVGElement::Parse(xml_node<>* node)
         strokeOpacity = (float)atof(attr->value());
 
     // 2. Parse Fill Color
-    // ===== PARSE FILL =====
+    // PARSE FILL 
     if (auto attr = node->first_attribute("fill"))
     {
         string s = attr->value();
 
-        // --- Trim whitespace ---
+        // Trim whitespace 
         while (!s.empty() && isspace((unsigned char)s.front())) s.erase(0, 1);
         while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
 
-        // ===== 1. fill="none" =====
+        // 1. fill="none" 
         if (s == "none") {
             fillType = FillType::None;
             fillColor = Color(0, 0, 0, 0);
         }
 
-        // ===== 2. fill="url(#id)" → Linear Gradient =====
+        // 2. fill="url(#id)" → Linear Gradient
         else if (s.rfind("url(", 0) == 0)
         {
             fillType = FillType::LinearGradient;
@@ -150,7 +148,7 @@ void SVGElement::Parse(xml_node<>* node)
             }
         }
 
-        // ===== 3. fill="#RRGGBB" hoặc "#RGB" =====
+        // 3. fill="#RRGGBB" hoặc "#RGB" 
         else if (!s.empty() && s[0] == '#') {
             fillType = FillType::Solid;
 
@@ -174,7 +172,7 @@ void SVGElement::Parse(xml_node<>* node)
             );
         }
 
-        // ===== 4. fill="rgb(r,g,b)" =====
+        // 4. fill="rgb(r,g,b)"
         else if (s.rfind("rgb", 0) == 0) {
             fillType = FillType::Solid;
 
@@ -235,13 +233,13 @@ void SVGElement::Parse(xml_node<>* node)
         while (!s.empty() && isspace((unsigned char)s.front())) s.erase(0, 1);
         while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
 
-        // ===== 1. stroke="none" =====
+        // 1. stroke="none"
         if (s == "none")
         {
             strokeColor = Color(0, 0, 0, 0);
         }
 
-        // ===== 2. stroke="#RRGGBB" / "#RGB" =====
+        // 2. stroke="#RRGGBB" / "#RGB"
         else if (!s.empty() && s[0] == '#')
         {
             string hex = s.substr(1);
@@ -264,7 +262,7 @@ void SVGElement::Parse(xml_node<>* node)
             );
         }
 
-        // ===== 3. stroke="rgb(r,g,b)" =====
+        // 3. stroke="rgb(r,g,b)"
         else if (s.rfind("rgb", 0) == 0)
         {
             vector<float> vals;
@@ -281,7 +279,7 @@ void SVGElement::Parse(xml_node<>* node)
             }
         }
 
-        // ===== 4. stroke="black", "red", ... =====
+        // 4. stroke="black", "red", ... 
         else
         {
             Color namedC;

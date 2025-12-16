@@ -34,7 +34,7 @@ void SVGPolyline::Draw(Graphics& g)
     auto state = g.Save();
     g.MultiplyTransform(&transform);
 
-    // ===== Compute bounds =====
+    // Compute bounds
     float minX = points[0].X;
     float minY = points[0].Y;
     float maxX = points[0].X;

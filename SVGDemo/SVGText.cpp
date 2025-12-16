@@ -5,7 +5,7 @@
 using namespace Gdiplus;
 using namespace std;
 
-// Helper: Chuẩn hóa khoảng trắng trong chuỗi
+// Chuẩn hóa khoảng trắng trong chuỗi
 static string NormalizeWhitespace(const string& s)
 {
     string out;
@@ -78,7 +78,7 @@ void SVGText::Parse(xml_node<>* node)
         }
     }
 
-    // === Parse text content (support multiline) ===
+    // Parse text content (support multiline)
     content.clear();
 
     if (node->value() && strlen(node->value()) > 0)

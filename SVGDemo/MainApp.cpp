@@ -29,7 +29,7 @@ bool MainApp::LoadSVG(const std::string& filePath)
     if (!ok)
     {
         // Dùng MessageBox để báo lỗi dễ thấy hơn std::cerr
-        std::wstring wFilePath(filePath.begin(), filePath.end()); // Chuyển sang wstring để in ra nếu cần
+        std::wstring wFilePath(filePath.begin(), filePath.end());
         std::cerr << "Khong the doc file SVG: " << filePath << std::endl;
         return false;
     }
@@ -47,18 +47,15 @@ void MainApp::Render(Graphics& g)
     {
         renderer.Render(g, parser.GetElements());
     }
-    // 2. Nếu chưa có hình -> Vẽ hướng dẫn "Kéo thả"
+    // 2. Nếu chưa có hình -> Hướng dẫn kéo thả
     else
     {
-        // --- KHAI BÁO CÁC ĐỐI TƯỢNG GDI+ CẦN THIẾT ---
         SolidBrush brush(Color(128, 128, 128)); // Màu xám
         FontFamily fontFamily(L"Arial");
         Font font(&fontFamily, 16, FontStyleBold, UnitPoint);
         StringFormat format;
         format.SetAlignment(StringAlignmentCenter);
         format.SetLineAlignment(StringAlignmentCenter);
-        // ----------------------------------------------
-
         // Lấy kích thước vùng vẽ
         RectF bounds;
         g.GetVisibleClipBounds(&bounds);
