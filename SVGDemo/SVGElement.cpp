@@ -132,7 +132,7 @@ void SVGElement::Parse(xml_node<>* node)
         // ===== 1. fill="none" =====
         if (s == "none") {
             fillType = FillType::None;
-            fillColor = Color(255, 0, 0, 0);
+            fillColor = Color(0, 0, 0, 0);
         }
 
         // ===== 2. fill="url(#id)" → Linear Gradient =====
@@ -182,11 +182,20 @@ void SVGElement::Parse(xml_node<>* node)
             GetNumbers(s, vals); // lấy r, g, b
 
             if (vals.size() >= 3) {
+                int r = (int)vals[0];
+                int g = (int)vals[1];
+                int b = (int)vals[2];
+
+                // Nếu > 255 thì lấy 255, nếu < 0 thì lấy 0
+                if (r > 255) r = 255; else if (r < 0) r = 0;
+                if (g > 255) g = 255; else if (g < 0) g = 0;
+                if (b > 255) b = 255; else if (b < 0) b = 0;
+
                 fillColor = Color(
                     (BYTE)(fillOpacity * 255),
-                    (BYTE)vals[0],
-                    (BYTE)vals[1],
-                    (BYTE)vals[2]
+                    (BYTE)r,
+                    (BYTE)g,
+                    (BYTE)b
                 );
             }
         }
@@ -338,39 +347,45 @@ void SVGElement::Parse(xml_node<>* node)
 
 void SVGElement::InheritFrom(const SVGElement& parent)
 {
-    if (!this->document)
-        this->document = parent.document;
+    if (!this->document) this->document = parent.document;
 
-    // ===== FILL =====
+    // 1. Luôn kế thừa Opacity
+    this->fillOpacity = parent.fillOpacity;
+    this->strokeOpacity = parent.strokeOpacity;
+
+    // 2. KẾ THỪA MÀU
     if (this->fillType == FillType::Unset && parent.fillType != FillType::Unset)
     {
         this->fillType = parent.fillType;
         this->fillColor = parent.fillColor;
-        this->fillOpacity = parent.fillOpacity;
         this->fillGradient = parent.fillGradient;
     }
 
-    // ===== STROKE =====
+    // 3. Kế thừa Stroke
     if (this->strokeColor.GetA() == 0 && parent.strokeColor.GetA() > 0)
     {
         this->strokeColor = parent.strokeColor;
-        this->strokeWidth = parent.strokeWidth;
-        this->strokeOpacity = parent.strokeOpacity;
-        this->strokeMiterLimit = parent.strokeMiterLimit;
     }
-}
 
+    this->strokeWidth = parent.strokeWidth;
+    this->strokeMiterLimit = parent.strokeMiterLimit;
+}
 Brush* SVGElement::CreateFillBrush(const RectF& bounds)
 {
     if (fillType == FillType::None) return nullptr;
 
-    // ===== SOLID COLOR =====
+    if (fillType == FillType::Unset)
+    {
+        // Kiểm tra opacity hiện tại
+        return new SolidBrush(Color((BYTE)(fillOpacity * 255), 0, 0, 0));
+    }
+    // Solid Color
     if (fillType == FillType::Solid)
     {
         return new SolidBrush(fillColor);
     }
 
-    // ===== LINEAR GRADIENT =====
+    // Linear Gradient
     if (fillType == FillType::LinearGradient && fillGradient)
     {
         return fillGradient->CreateBrush(bounds);

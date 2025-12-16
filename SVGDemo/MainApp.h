@@ -35,4 +35,5 @@ public:
 
 	// Lấy bộ kết xuất
 	SVGRenderer& GetRenderer() { return renderer; }
+    const vector<SVGElement*>& GetElements() const { return parser.GetElements(); }
 };

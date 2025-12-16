@@ -1,13 +1,12 @@
 ﻿#include "stdafx.h"
 #include "SVGPath.h"
 #include <iostream>
-#include <cstdlib> // Cho strtod
+#include <cstdlib> 
 
 using namespace std;
 using namespace Gdiplus;
 
-// --- Helper Tối ưu hóa: Đọc số float trực tiếp, không tạo string mới ---
-// Hàm này nhanh hơn cách cũ gấp nhiều lần
+// Hàm lấy phần tử vẽ tiếp theo
 static float GetNextNumber(const char*& ptr)
 {
     // Bỏ qua khoảng trắng và dấu phẩy
@@ -18,13 +17,13 @@ static float GetNextNumber(const char*& ptr)
     if (*ptr == '\0') return 0.0f;
 
     char* endPtr;
-    double val = strtod(ptr, &endPtr); // strtod cực nhanh và chuẩn C
+    double val = strtod(ptr, &endPtr);
 
     if (ptr == endPtr) {
-        return 0.0f; // Không đọc được số nào
+        return 0.0f;
     }
 
-    ptr = endPtr; // Cập nhật vị trí con trỏ
+    ptr = endPtr;
     return (float)val;
 }
 
@@ -43,7 +42,7 @@ void SVGPath::Parse(xml_node<>* node)
     xml_attribute<>* attr = node->first_attribute("d");
     if (!attr) return;
 
-    // Lấy con trỏ C-style string trực tiếp từ rapidxml (Không copy ra std::string)
+    // Lấy con trỏ C-style
     const char* ptr = attr->value();
 
     PointF current(0, 0);
@@ -66,7 +65,6 @@ void SVGPath::Parse(xml_node<>* node)
 
         switch (command)
         {
-            // --- TUYỆT ĐỐI (Absolute) ---
         case 'M':
         {
             float x = GetNextNumber(ptr);
@@ -75,6 +73,8 @@ void SVGPath::Parse(xml_node<>* node)
             current = PointF(x, y);
             startFig = current;
             lastControl = current;
+
+            command = 'L';
             break;
         }
         case 'L':
@@ -152,12 +152,12 @@ void SVGPath::Parse(xml_node<>* node)
             break;
         }
 
-        // --- TƯƠNG ĐỐI (Relative) - Chữ thường ---
+        // TƯƠNG ĐỐI (Relative)
         case 'm':
         {
             float dx = GetNextNumber(ptr);
             float dy = GetNextNumber(ptr);
-            if (path.GetPointCount() == 0) { // Lệnh đầu tiên của file
+            if (path.GetPointCount() == 0) {
                 current = PointF(dx, dy);
                 startFig = current;
             }
@@ -167,6 +167,8 @@ void SVGPath::Parse(xml_node<>* node)
                 startFig = current;
             }
             lastControl = current;
+
+            command = 'l';
             break;
         }
         case 'l':
@@ -245,7 +247,7 @@ void SVGPath::Parse(xml_node<>* node)
             current = pEnd;
             break;
         }
-        case 'A': // Arc (Vẫn tạm bỏ qua để tránh lỗi)
+        case 'A': // Arc (Bỏ qua)
         case 'a':
         {
             GetNextNumber(ptr); GetNextNumber(ptr); GetNextNumber(ptr);
@@ -260,7 +262,7 @@ void SVGPath::Parse(xml_node<>* node)
         }
 
         default:
-            ptr++; // Skip unknown
+            ptr++;
             break;
         }
     }
@@ -268,8 +270,6 @@ void SVGPath::Parse(xml_node<>* node)
 
 void SVGPath::Draw(Graphics& g)
 {
-    // ... (Giữ nguyên hàm Draw cũ của bạn) ...
-    // Copy lại nội dung hàm Draw từ file cũ
     auto state = g.Save();
     g.MultiplyTransform(&transform);
 
@@ -289,4 +289,12 @@ void SVGPath::Draw(Graphics& g)
     }
 
     g.Restore(state);
+}
+
+RectF SVGPath::GetBoundingBox()
+{
+    RectF bounds;
+    // Lấy kích thước path
+    path.GetBounds(&bounds, &transform, NULL);
+    return bounds;
 }

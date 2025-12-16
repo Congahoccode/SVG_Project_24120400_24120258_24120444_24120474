@@ -32,4 +32,5 @@ public:
     void Zoom(float factor);
     void Pan(float dx, float dy);
     void Rotate(float degrees);
+    void AutoFit(int screenWidth, int screenHeight, const std::vector<SVGElement*>& elements);
 };

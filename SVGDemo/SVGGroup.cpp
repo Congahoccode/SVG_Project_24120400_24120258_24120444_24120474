@@ -48,3 +48,37 @@ void SVGGroup::Draw(Graphics& g)
 
     g.Restore(state);
 }
+
+RectF SVGGroup::GetBoundingBox()
+{
+    RectF totalRect(0, 0, 0, 0);
+    bool first = true;
+
+    for (auto* c : children)
+    {
+        RectF r = c->GetBoundingBox();
+
+        // Bỏ qua hình rỗng
+        if (r.Width <= 0 || r.Height <= 0) continue;
+
+        if (first) {
+            totalRect = r;
+            first = false;
+        }
+        else {
+            // Hợp nhất hình chữ nhật
+            totalRect.Union(totalRect, totalRect, r);
+        }
+    }
+
+    // Nếu Group có transform (di chuyển/scale), ta phải áp dụng lên khung bao tổng
+    if (!transform.IsIdentity())
+    {
+        GraphicsPath gp;
+        gp.AddRectangle(totalRect);
+        gp.Transform(&transform);
+        gp.GetBounds(&totalRect);
+    }
+
+    return totalRect;
+}

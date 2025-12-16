@@ -20,4 +20,5 @@ public:
     void Parse(xml_node<>* node) override;
 
     void Draw(Graphics& g) override;
+    RectF GetBoundingBox() override;
 };

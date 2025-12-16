@@ -33,7 +33,7 @@ protected:
     float strokeMiterLimit;
     SVGDocument* document;
     SVGLinearGradient* fillGradient;
-    FillType fillType = FillType::None;
+    FillType fillType = FillType::Unset;
     Brush* CreateFillBrush(const RectF& bounds);
     Pen* CreateStrokePen();
 
@@ -59,4 +59,5 @@ public:
     virtual void InheritFrom(const SVGElement& parent); // Kế thừa node cha trong element svg group
     virtual void Parse(xml_node<>* node);
     virtual void Draw(Graphics& graphics) = 0;
+    virtual RectF GetBoundingBox() { return RectF(0, 0, 0, 0); }
 };
