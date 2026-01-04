@@ -1,28 +1,27 @@
 ﻿#include "stdafx.h"
 #include "SVGPolyline.h"
-#include <sstream>
+#include "SVGHelper.h" 
 #include <string>
+#include <algorithm>
 
 using namespace std;
 using namespace Gdiplus;
 using namespace rapidxml;
 
-void SVGPolyline::Parse(xml_node<>* node) 
+void SVGPolyline::Parse(xml_node<>* node)
 {
     SVGElement::Parse(node);
-    for (auto* a = node->first_attribute(); a; a = a->next_attribute()) 
+    if (auto a = node->first_attribute("points"))
     {
-        string n = a->name();
-        if (n == "points") 
-        {
-            stringstream ss(a->value());
-            float x, y;
-            char comma;
-            while (ss >> x) 
-            {
-                if (ss.peek() == ',') ss >> comma;
-                if (ss >> y) points.push_back(PointF(x, y));
-            }
+        const char* ptr = a->value();
+        while (*ptr) {
+            while (*ptr && !isdigit(*ptr) && *ptr != '-' && *ptr != '.' && *ptr != '+') ptr++;
+            if (!*ptr) break;
+            float x = ParseNumber(ptr);
+            while (*ptr && !isdigit(*ptr) && *ptr != '-' && *ptr != '.' && *ptr != '+') ptr++;
+            if (!*ptr) break;
+            float y = ParseNumber(ptr);
+            points.push_back(PointF(x, y));
         }
     }
 }
@@ -34,30 +33,14 @@ void SVGPolyline::Draw(Graphics& g)
     auto state = g.Save();
     g.MultiplyTransform(&transform);
 
-    // Compute bounds
-    float minX = points[0].X;
-    float minY = points[0].Y;
-    float maxX = points[0].X;
-    float maxY = points[0].Y;
+    RectF bounds = GetBoundingBox();
 
-    for (size_t i = 1; i < points.size(); ++i)
-    {
-        minX = min(minX, points[i].X);
-        minY = min(minY, points[i].Y);
-        maxX = max(maxX, points[i].X);
-        maxY = max(maxY, points[i].Y);
-    }
-
-    RectF bounds(minX, minY, maxX - minX, maxY - minY);
-
-    // ===== FILL (theo yêu cầu đồ án: dùng FillPolygon dù không khép kín) =====
     if (Brush* brush = CreateFillBrush(bounds))
     {
         g.FillPolygon(brush, points.data(), (INT)points.size());
         delete brush;
     }
 
-    // ===== STROKE =====
     if (Pen* pen = CreateStrokePen())
     {
         g.DrawLines(pen, points.data(), (INT)points.size());
@@ -65,4 +48,21 @@ void SVGPolyline::Draw(Graphics& g)
     }
 
     g.Restore(state);
+}
+
+Gdiplus::RectF SVGPolyline::GetBoundingBox()
+{
+    if (points.empty()) return RectF(0, 0, 0, 0);
+
+    float minX = points[0].X, maxX = points[0].X;
+    float minY = points[0].Y, maxY = points[0].Y;
+
+    for (const auto& p : points)
+    {
+        if (p.X < minX) minX = p.X;
+        if (p.X > maxX) maxX = p.X;
+        if (p.Y < minY) minY = p.Y;
+        if (p.Y > maxY) maxY = p.Y;
+    }
+    return RectF(minX, minY, maxX - minX, maxY - minY);
 }

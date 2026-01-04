@@ -8,54 +8,15 @@
 #include <vector>
 #include <algorithm>
 
-static Color ParseLinearGradientGColor(const std::string& s, float opacity = 1.0f)
-{
-    int r = 0, g = 0, b = 0;
-    int a = (int)(opacity * 255);
+using namespace std;
+using namespace Gdiplus;
 
-    if (s.empty())
-        return Color(0, 0, 0, 0);
-
-    // #RRGGBB
-    if (s[0] == '#' && s.length() == 7)
-    {
-        r = stoi(s.substr(1, 2), nullptr, 16);
-        g = stoi(s.substr(3, 2), nullptr, 16);
-        b = stoi(s.substr(5, 2), nullptr, 16);
-    }
-    // #RGB
-    else if (s[0] == '#' && s.length() == 4)
-    {
-        r = stoi(s.substr(1, 1), nullptr, 16) * 17;
-        g = stoi(s.substr(2, 1), nullptr, 16) * 17;
-        b = stoi(s.substr(3, 1), nullptr, 16) * 17;
-    }
-    // rgb(r,g,b)
-    else if (s.rfind("rgb(", 0) == 0)
-    {
-        int rr, gg, bb;
-        sscanf_s(s.c_str(), "rgb(%d,%d,%d)", &rr, &gg, &bb);
-        r = rr; g = gg; b = bb;
-    }
-
-    return Color(a, r, g, b);
-}
-
-static std::string GetStyleValue(const std::string& style, const std::string& key)
-{
-    size_t pos = style.find(key);
-    if (pos == std::string::npos) return "";
-
-    pos = style.find(':', pos);
-    if (pos == std::string::npos) return "";
-
-    size_t end = style.find(';', pos);
-    return style.substr(pos + 1, end - pos - 1);
-}
-
-static float ParseFloat(const char* s)
-{
-    return (float)atof(s);
+// Helper: Hex2Int (Static để tránh lỗi duplicate symbol)
+static int Hex2Int(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return 0;
 }
 
 void SVGLinearGradient::Parse(rapidxml::xml_node<>* node, SVGDocument* doc)
@@ -70,41 +31,84 @@ void SVGLinearGradient::Parse(rapidxml::xml_node<>* node, SVGDocument* doc)
     if (auto attr = node->first_attribute("gradientUnits"))
         userSpace = string(attr->value()) == "userSpaceOnUse";
 
-    // Parse <stop>
-    for (auto* stop = node->first_node("stop"); stop; stop = stop->next_sibling("stop"))
-    {
-        SVGGradientStop gs;
-        gs.offset = 0.0f;
-        float opacity = 1.0f;
-        string colorStr;
+    // --- XỬ LÝ KẾ THỪA ---
+    if (auto attr = node->first_attribute("xlink:href")) {
+        string href = attr->value();
+        if (!href.empty() && href[0] == '#' && doc) {
+            string pid = href.substr(1);
+            SVGLinearGradient* lin = doc->GetLinearGradient(pid);
+            if (lin) this->stops = lin->GetStops();
+            else {
+                SVGRadialGradient* rad = doc->GetRadialGradient(pid);
+                if (rad) this->stops = rad->GetStops(); // Lỗi LNK thường xảy ra ở đây nếu SVGRadialGradient thiếu GetStops
+            }
+        }
+    }
 
-        if (auto a = stop->first_attribute("offset"))
-        {
-            string v = a->value();
-            if (v.back() == '%')
-                gs.offset = atof(v.c_str()) / 100.0f; 
-            else
-                gs.offset = atof(v.c_str());
+    // --- XỬ LÝ TRANSFORM (SỬA LỖI ĐA GIÁC CHROME) ---
+    if (auto attr = node->first_attribute("gradientTransform")) {
+        string t = attr->value();
+        transform.Reset();
+
+        size_t pos = 0;
+        while (pos < t.length()) {
+            size_t start = t.find_first_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", pos);
+            if (start == string::npos) break;
+            size_t openParen = t.find('(', start);
+            if (openParen == string::npos) break;
+            string command = t.substr(start, openParen - start);
+            size_t closeParen = t.find(')', openParen);
+            if (closeParen == string::npos) break;
+            string args = t.substr(openParen + 1, closeParen - openParen - 1);
+
+            vector<float> vals;
+            ParseNumberList(args.c_str(), vals);
+
+            if (command == "matrix" && vals.size() >= 6) {
+                Matrix m(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]);
+                transform.Multiply(&m, MatrixOrderPrepend);
+            }
+            else if (command == "translate" && vals.size() >= 1) {
+                transform.Translate(vals[0], (vals.size() > 1) ? vals[1] : 0, MatrixOrderPrepend);
+            }
+            else if (command == "scale" && vals.size() >= 1) {
+                transform.Scale(vals[0], (vals.size() > 1) ? vals[1] : vals[0], MatrixOrderPrepend);
+            }
+            else if (command == "rotate" && vals.size() >= 1) {
+                if (vals.size() >= 3) transform.RotateAt(vals[0], PointF(vals[1], vals[2]), MatrixOrderPrepend);
+                else transform.Rotate(vals[0], MatrixOrderPrepend);
+            }
+            pos = closeParen + 1;
+        }
+    }
+
+    // Parse Stops
+    if (node->first_node("stop")) stops.clear(); // Xóa stop kế thừa nếu có
+
+    for (auto* stop = node->first_node("stop"); stop; stop = stop->next_sibling("stop")) {
+        SVGGradientStop gs; gs.offset = 0.0f;
+        if (auto a = stop->first_attribute("offset")) gs.offset = ParseUnit(a->value());
+
+        int r = 0, g = 0, b = 0, a = 255;
+        if (auto c = stop->first_attribute("stop-color")) {
+            string s = c->value();
+            if (!s.empty() && s[0] == '#') {
+                string hex = s.substr(1);
+                if (hex.length() >= 6) {
+                    r = stoi(hex.substr(0, 2), 0, 16); g = stoi(hex.substr(2, 2), 0, 16); b = stoi(hex.substr(4, 2), 0, 16);
+                }
+                else if (hex.length() >= 3) {
+                    r = Hex2Int(hex[0]) * 17; g = Hex2Int(hex[1]) * 17; b = Hex2Int(hex[2]) * 17;
+                }
+            }
         }
 
-        if (auto c = stop->first_attribute("stop-color"))
-            colorStr = c->value();
-
-        if (auto o = stop->first_attribute("stop-opacity"))
-            opacity = (float)atof(o->value());
-
-        if (auto s = stop->first_attribute("style"))
-        {
-            string style = s->value();
-
-            string sc = GetStyleValue(style, "stop-color");
-            if (!sc.empty()) colorStr = sc;
-
-            string so = GetStyleValue(style, "stop-opacity");
-            if (!so.empty()) opacity = (float)atof(so.c_str());
+        if (auto op = stop->first_attribute("stop-opacity")) {
+            const char* ptr = op->value();
+            a = (int)(255 * ParseNumber(ptr));
         }
 
-        gs.color = ParseLinearGradientGColor(colorStr, opacity);
+        gs.color = Color(a, r, g, b);
         stops.push_back(gs);
     }
 }

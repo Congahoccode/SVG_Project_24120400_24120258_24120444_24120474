@@ -1,46 +1,34 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "SVGCircle.h"
-#include <string>
-#include <gdiplus.h>
-#include "rapidxml.hpp" 
+#include "SVGHelper.h"
 
-using namespace std;
-using namespace Gdiplus;
-using namespace rapidxml;
-
-void SVGCircle::Parse(xml_node<>* node) 
+void SVGCircle::Parse(rapidxml::xml_node<>* node)
 {
     SVGElement::Parse(node);
-    for (auto* a = node->first_attribute(); a; a = a->next_attribute()) 
-    {
-        string n = a->name();
-        string v = a->value();
-        if (n == "cx") cx = stof(v);
-        else if (n == "cy") cy = stof(v);
-        else if (n == "r") r = stof(v);
-    }
+    if (auto attr = node->first_attribute("cx")) cx = ParseUnit(attr->value());
+    if (auto attr = node->first_attribute("cy")) cy = ParseUnit(attr->value());
+    if (auto attr = node->first_attribute("r"))  r = ParseUnit(attr->value());
 }
 
-void SVGCircle::Draw(Graphics& g)
+void SVGCircle::Draw(Gdiplus::Graphics& g)
 {
-    auto state = g.Save();
+    Gdiplus::GraphicsState state = g.Save();
     g.MultiplyTransform(&transform);
 
-    RectF bounds(cx - r, cy - r, 2 * r, 2 * r);
+    Gdiplus::RectF bounds(cx - r, cy - r, 2 * r, 2 * r);
 
-    // ===== FILL =====
-    if (Brush* brush = CreateFillBrush(bounds))
-    {
+    if (auto* brush = CreateFillBrush(bounds)) {
         g.FillEllipse(brush, bounds);
         delete brush;
     }
-
-    // ===== STROKE =====
-    if (Pen* pen = CreateStrokePen())
-    {
+    if (auto* pen = CreateStrokePen()) {
         g.DrawEllipse(pen, bounds);
         delete pen;
     }
-
     g.Restore(state);
+}
+
+Gdiplus::RectF SVGCircle::GetBoundingBox()
+{
+    return Gdiplus::RectF(cx - r, cy - r, 2 * r, 2 * r);
 }

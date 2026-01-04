@@ -1,44 +1,35 @@
 #include "stdafx.h"
-#include "SVGEclipse.h"
-#include <string>
+#include "SVGEclipse.h" 
+#include "SVGHelper.h"
 
-using namespace std;
-using namespace Gdiplus;
-using namespace rapidxml;
-
-void SVGEllipse::Parse(xml_node<>* node) 
+void SVGEllipse::Parse(rapidxml::xml_node<>* node)
 {
     SVGElement::Parse(node);
-    for (auto* a = node->first_attribute(); a; a = a->next_attribute()) 
-    {
-        string n = a->name();
-        string v = a->value();
-        if (n == "cx") cx = stof(v);
-        else if (n == "cy") cy = stof(v);
-        else if (n == "rx") rx = stof(v);
-        else if (n == "ry") ry = stof(v);
-    }
+    if (auto attr = node->first_attribute("cx")) cx = ParseUnit(attr->value());
+    if (auto attr = node->first_attribute("cy")) cy = ParseUnit(attr->value());
+    if (auto attr = node->first_attribute("rx")) rx = ParseUnit(attr->value());
+    if (auto attr = node->first_attribute("ry")) ry = ParseUnit(attr->value());
 }
 
 void SVGEllipse::Draw(Gdiplus::Graphics& g)
 {
-    auto state = g.Save();
+    Gdiplus::GraphicsState state = g.Save();
     g.MultiplyTransform(&transform);
 
-    RectF bounds(cx - rx, cy - ry, 2 * rx, 2 * ry);
+    Gdiplus::RectF bounds(cx - rx, cy - ry, 2 * rx, 2 * ry);
 
-    if (Brush* brush = CreateFillBrush(bounds))
-    {
+    if (auto* brush = CreateFillBrush(bounds)) {
         g.FillEllipse(brush, bounds);
         delete brush;
     }
-
-    if (Pen* pen = CreateStrokePen())
-    {
+    if (auto* pen = CreateStrokePen()) {
         g.DrawEllipse(pen, bounds);
         delete pen;
     }
-
     g.Restore(state);
 }
 
+Gdiplus::RectF SVGEllipse::GetBoundingBox()
+{
+    return Gdiplus::RectF(cx - rx, cy - ry, 2 * rx, 2 * ry);
+}

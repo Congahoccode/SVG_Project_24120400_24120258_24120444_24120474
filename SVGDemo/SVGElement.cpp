@@ -133,17 +133,25 @@ void SVGElement::ParseFillValue(const string& value)
     }
 
     // 2. fill="url(#id)" → Linear Gradient
-    else if (value.rfind("url(", 0) == 0)
-    {
-        fillType = FillType::LinearGradient;
-
+    else if (value.rfind("url(", 0) == 0) {
         size_t start = value.find('#');
         size_t end = value.find(')', start);
 
-        if (start != string::npos && end != string::npos && document)
-        {
+        if (start != string::npos && end != string::npos && document) {
             string id = value.substr(start + 1, end - start - 1);
+
+            // Tìm Linear trước
             fillGradient = document->GetLinearGradient(id);
+            if (fillGradient) {
+                fillType = FillType::LinearGradient;
+            }
+            else {
+                // Tìm Radial sau
+                fillRadialGradient = document->GetRadialGradient(id);
+                if (fillRadialGradient) {
+                    fillType = FillType::RadialGradient;
+                }
+            }
         }
     }
 
@@ -197,6 +205,7 @@ void SVGElement::ParseFillValue(const string& value)
         
         }
     }
+
     // 5. NameColor
     else
     {
@@ -371,7 +380,10 @@ void SVGElement::Parse(xml_node<>* node)
 		ParseStrokeValue(s);
     }
 
-    // 5. TRANSFORM (Giữ nguyên logic cũ của bạn)
+    // 4. Stroke width, Miter Limit
+    if (auto attr = node->first_attribute("stroke-width")) strokeWidth = (float)atof(attr->value());
+	if (auto attr = node->first_attribute("stroke-miterlimit")) strokeMiterLimit = atof(attr->value());
+    // 5. TRANSFORM 
     if (auto attr = node->first_attribute("transform")) {
         string t = attr->value();
         size_t pos = 0;

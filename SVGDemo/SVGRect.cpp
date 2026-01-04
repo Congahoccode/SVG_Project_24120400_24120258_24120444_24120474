@@ -1,19 +1,15 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "SVGRect.h"
+#include "SVGHelper.h"
 #include <string>
 
-void SVGRect::Parse(rapidxml::xml_node<>* node) 
+void SVGRect::Parse(rapidxml::xml_node<>* node)
 {
     SVGElement::Parse(node);
-    for (auto* a = node->first_attribute(); a; a = a->next_attribute()) 
-    {
-        std::string n = a->name();
-        std::string v = a->value();
-        if (n == "x") x = std::stof(v);
-        if (n == "y") y = std::stof(v);
-        if (n == "width") width = std::stof(v);
-        if (n == "height") height = std::stof(v);
-    }
+    if (auto a = node->first_attribute("x")) x = ParseUnit(a->value());
+    if (auto a = node->first_attribute("y")) y = ParseUnit(a->value());
+    if (auto a = node->first_attribute("width")) width = ParseUnit(a->value());
+    if (auto a = node->first_attribute("height")) height = ParseUnit(a->value());
 }
 
 void SVGRect::Draw(Gdiplus::Graphics& g)
@@ -38,3 +34,7 @@ void SVGRect::Draw(Gdiplus::Graphics& g)
     g.Restore(state);
 }
 
+Gdiplus::RectF SVGRect::GetBoundingBox()
+{
+    return Gdiplus::RectF(x, y, width, height);
+}

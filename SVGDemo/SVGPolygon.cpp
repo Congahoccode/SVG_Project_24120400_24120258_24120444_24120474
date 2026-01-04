@@ -1,52 +1,42 @@
 ﻿#include "stdafx.h"
 #include "SVGPolygon.h"
+#include "SVGHelper.h"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 using namespace Gdiplus;
 
-// Hàm tách số (Copy từ SVGElement để dùng nội bộ)
 static void GetPoints(const string& s, vector<PointF>& points)
 {
-    string temp = "";
-    vector<float> coords;
-
-    for (char c : s)
-    {
-        // Chấp nhận số, dấu chấm, dấu trừ, e (khoa học)
-        if (isdigit(c) || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E')
-        {
-            temp += c;
-        }
-        else
-        {
-            if (!temp.empty()) {
-                try { coords.push_back(stof(temp)); }
-                catch (...) {}
-                temp = "";
-            }
-        }
-    }
-    if (!temp.empty()) { try { coords.push_back(stof(temp)); } catch (...) {} }
-
-    // Gom cứ 2 số thành 1 điểm (x, y)
-    for (size_t i = 0; i + 1 < coords.size(); i += 2)
-    {
-        points.push_back(PointF(coords[i], coords[i + 1]));
+    const char* ptr = s.c_str();
+    while (*ptr) {
+        while (*ptr && !isdigit(*ptr) && *ptr != '-' && *ptr != '.' && *ptr != '+') ptr++;
+        if (!*ptr) break;
+        float x = ParseNumber(ptr);
+        while (*ptr && !isdigit(*ptr) && *ptr != '-' && *ptr != '.' && *ptr != '+') ptr++;
+        if (!*ptr) break;
+        float y = ParseNumber(ptr);
+        points.push_back(PointF(x, y));
     }
 }
 
 void SVGPolygon::Parse(rapidxml::xml_node<>* node)
 {
-    // 1. Parse các thuộc tính chung (Màu, Stroke, Transform...)
-    SVGElement::Parse(node);
+    SVGElement::Parse(node); // Parse fill, stroke, transform...
 
-    // 2. Parse danh sách điểm
+    // Parse danh sách điểm
     if (auto attr = node->first_attribute("points"))
     {
-        string s = attr->value();
-        GetPoints(s, points);
+        GetPoints(attr->value(), points);
+    }
+
+    fillMode = FillModeAlternate;
+    if (auto attr = node->first_attribute("fill-rule")) {
+        string rule = attr->value();
+        if (rule == "nonzero") fillMode = FillModeWinding;
+        else if (rule == "evenodd") fillMode = FillModeAlternate;
     }
 }
 
@@ -55,19 +45,17 @@ void SVGPolygon::Draw(Graphics& g)
     if (points.empty()) return;
 
     GraphicsState state = g.Save();
-
-    // QUAN TRỌNG: Áp dụng transform của chính Polygon (nếu có)
     g.MultiplyTransform(&transform);
 
-    // 1. Tô màu (Fill)
-    if (auto* brush = CreateFillBrush(GetBounds())) // Hàm này có trong SVGElement.cpp
+    RectF bounds = GetBoundingBox();
+
+    if (auto* brush = CreateFillBrush(bounds))
     {
-        g.FillPolygon(brush, points.data(), (INT)points.size());
+        g.FillPolygon(brush, points.data(), (INT)points.size(), fillMode);
         delete brush;
     }
 
-    // 2. Vẽ viền (Stroke)
-    if (auto* pen = CreateStrokePen()) // Hàm này có trong SVGElement.cpp
+    if (auto* pen = CreateStrokePen())
     {
         g.DrawPolygon(pen, points.data(), (INT)points.size());
         delete pen;
@@ -76,3 +64,21 @@ void SVGPolygon::Draw(Graphics& g)
     g.Restore(state);
 }
 
+RectF SVGPolygon::GetBoundingBox()
+{
+    if (points.empty()) return RectF(0, 0, 0, 0);
+
+    float minX = points[0].X, maxX = points[0].X;
+    float minY = points[0].Y, maxY = points[0].Y;
+
+    for (const auto& p : points) {
+        if (p.X < minX) minX = p.X;
+        if (p.X > maxX) maxX = p.X;
+        if (p.Y < minY) minY = p.Y;
+        if (p.Y > maxY) maxY = p.Y;
+    }
+    float w = maxX - minX; if (w < 0.1f) w = 0.1f;
+    float h = maxY - minY; if (h < 0.1f) h = 0.1f;
+
+    return RectF(minX, minY, w, h);
+}
