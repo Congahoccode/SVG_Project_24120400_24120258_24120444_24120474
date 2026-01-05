@@ -100,7 +100,7 @@ void SVGText::Draw(Gdiplus::Graphics& g)
     {
         // Measure text
         RectF layout;
-        g.MeasureString(ln.c_str(), -1, &font, PointF(0, 0), &layout);
+        g.MeasureString(ln.c_str(), -1, &font, PointF(0, 0), StringFormat::GenericTypographic(), &layout);
 
         float drawX = x;
         if (anchor == TextAnchor::Middle)
@@ -159,20 +159,13 @@ Gdiplus::RectF SVGText::GetBoundingBox()
 
     for (const auto& ln : lines)
     {
-        // 1. Measure text để tính Anchor offset
         RectF layout;
-        g.MeasureString(ln.c_str(), -1, &font, PointF(0, 0), &layout);
+        g.MeasureString(ln.c_str(), -1, &font, PointF(0, 0), StringFormat::GenericTypographic(), &layout);
 
-        float drawX = x;
-        if (anchor == TextAnchor::Middle) drawX -= layout.Width / 2;
-        else if (anchor == TextAnchor::End) drawX -= layout.Width;
-
-        // 2. Add chuỗi vào path
         path.AddString(
-            ln.c_str(), -1,
-            family, fontStyle, fontSize,
-            PointF(drawX, currentY - fontSize),
-            nullptr
+            ln.c_str(), -1, family, fontStyle, fontSize,
+            layout,
+            StringFormat::GenericTypographic()
         );
     }
 

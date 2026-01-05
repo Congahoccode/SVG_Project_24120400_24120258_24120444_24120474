@@ -47,12 +47,12 @@ inline float ParseUnit(const std::string& str, float defaultVal = 0.0f)
     std::string suffix = ptr;
 
     if (suffix == "px") return val;
-    if (suffix == "pt") return val * 1.0f; // 1pt = 1 user unit (thường dùng trong illustrator)
+    if (suffix == "pt") return val * 1.0f;
     if (suffix == "pc") return val * 15.0f;
     if (suffix == "mm") return val * 3.7795f;
     if (suffix == "cm") return val * 37.795f;
     if (suffix == "in") return val * 96.0f;
-    if (suffix == "%") return val / 100.0f; // Quan trọng cho Gradient
+    if (suffix == "%") return val / 100.0f;
 
     return val;
 }
@@ -159,24 +159,51 @@ inline void ParseTransformString(const std::string& t, Gdiplus::Matrix& matrix) 
     matrix.Reset();
     size_t pos = 0;
     std::string s = t;
+    Gdiplus::MatrixOrder order = Gdiplus::MatrixOrderPrepend;
     while (pos < s.length()) {
         size_t start = s.find_first_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", pos);
         if (start == std::string::npos) break;
+
         size_t openParen = s.find('(', start);
         if (openParen == std::string::npos) break;
+
         std::string command = s.substr(start, openParen - start);
         size_t closeParen = s.find(')', openParen);
         if (closeParen == std::string::npos) break;
+
         std::string args = s.substr(openParen + 1, closeParen - openParen - 1);
         std::vector<float> v;
         ParseNumberList(args.c_str(), v);
-        Gdiplus::MatrixOrder order = Gdiplus::MatrixOrderPrepend;
-        if (command == "matrix" && v.size() >= 6) { Gdiplus::Matrix m(v[0], v[1], v[2], v[3], v[4], v[5]); matrix.Multiply(&m, order); }
-        else if (command == "translate" && v.size() >= 1) { matrix.Translate(v[0], (v.size() > 1) ? v[1] : 0, order); }
-        else if (command == "scale" && v.size() >= 1) { matrix.Scale(v[0], (v.size() > 1) ? v[1] : v[0], order); }
-        else if (command == "rotate" && v.size() >= 1) { if (v.size() >= 3) { matrix.Translate(v[1], v[2], order); matrix.Rotate(v[0], order); matrix.Translate(-v[1], -v[2], order); } else { matrix.Rotate(v[0], order); } }
-        else if (command == "skewX" && v.size() >= 1) { float rad = v[0] * 3.14159265f / 180.0f; matrix.Shear(tan(rad), 0, order); }
-        else if (command == "skewY" && v.size() >= 1) { float rad = v[0] * 3.14159265f / 180.0f; matrix.Shear(0, tan(rad), order); }
+
+        if (command == "matrix" && v.size() >= 6) {
+            Gdiplus::Matrix m(v[0], v[1], v[2], v[3], v[4], v[5]);
+            matrix.Multiply(&m, order);
+        }
+        else if (command == "translate" && v.size() >= 1) {
+            matrix.Translate(v[0], (v.size() > 1) ? v[1] : 0, order);
+        }
+        else if (command == "scale" && v.size() >= 1) {
+            matrix.Scale(v[0], (v.size() > 1) ? v[1] : v[0], order);
+        }
+        else if (command == "rotate" && v.size() >= 1) {
+            if (v.size() >= 3) {
+                matrix.Translate(v[1], v[2], order);
+                matrix.Rotate(v[0], order);
+                matrix.Translate(-v[1], -v[2], order);
+            }
+            else {
+                matrix.Rotate(v[0], order);
+            }
+        }
+        else if (command == "skewX" && v.size() >= 1) {
+            float rad = v[0] * 3.14159265f / 180.0f;
+            matrix.Shear(tan(rad), 0, order);
+        }
+        else if (command == "skewY" && v.size() >= 1) {
+            float rad = v[0] * 3.14159265f / 180.0f;
+            matrix.Shear(0, tan(rad), order);
+        }
+
         pos = closeParen + 1;
     }
 }

@@ -56,63 +56,77 @@ void SVGRadialGradient::Parse(rapidxml::xml_node<>* node, SVGDocument* doc)
 
 PathGradientBrush* SVGRadialGradient::CreateBrush(const RectF& bounds) const
 {
+    const float EXPAND = 1.5f;
+
     GraphicsPath path;
     float realR = r;
     if (realR <= 0.0001f) realR = 0.5f;
 
-    // Tạo hình tròn đơn vị tại tâm cx, cy
-    path.AddEllipse(cx - realR, cy - realR, realR * 2, realR * 2);
+    float expandedR = realR * EXPAND;
+    path.AddEllipse(cx - expandedR, cy - expandedR, expandedR * 2, expandedR * 2);
 
-    auto* brush = new PathGradientBrush(&path);
+    PointF centerPoint(fx, fy);
     Matrix m;
 
-    // 1. Áp dụng GradientTransform trước
+    // 1. Gradient Transform
     if (!transform.IsIdentity()) {
         m.Multiply(const_cast<Matrix*>(&transform), MatrixOrderAppend);
     }
-
-    // 2. Map vào Bounds
+    // 2. Map to Bounds
     if (!userSpace) {
-        m.Translate(bounds.X, bounds.Y, MatrixOrderAppend);
         m.Scale(bounds.Width, bounds.Height, MatrixOrderAppend);
+        m.Translate(bounds.X, bounds.Y, MatrixOrderAppend);
     }
 
-    brush->MultiplyTransform(&m);
-    brush->SetCenterPoint(PointF(fx, fy));
+    // Biến đổi hình học
+    path.Transform(&m);
+    m.TransformPoints(&centerPoint);
 
-    // Setup Colors
-    if (stops.size() >= 2) {
+    auto* brush = new PathGradientBrush(&path);
+    brush->SetCenterPoint(centerPoint);
+
+    if (!stops.empty()) {
         vector<SVGGradientStop> safeStops = stops;
-        float maxOff = 0;
-        for (auto& s : safeStops) { if (s.offset < maxOff) s.offset = maxOff; else maxOff = s.offset; }
+        if (safeStops.empty() || safeStops.back().offset < 0.999f) {
+            safeStops.push_back({ 1.0f, safeStops.empty() ? Color::Black : safeStops.back().color });
+        }
 
-        vector<Color> cols; vector<REAL> pos;
+        vector<Color> cols;
+        vector<REAL> pos;
+
         for (auto it = safeStops.rbegin(); it != safeStops.rend(); ++it) {
             cols.push_back(it->color);
-            pos.push_back(1.0f - it->offset);
+            float p = 1.0f - (it->offset / EXPAND);
+            if (p < 0) p = 0; if (p > 1) p = 1;
+            pos.push_back(p);
         }
 
         if (pos.empty() || pos.front() > 0.001f) {
-            Color c = cols.empty() ? Color::Black : cols.front();
-            pos.insert(pos.begin(), 0.0f); cols.insert(cols.begin(), c);
+            Color lastColor = cols.front();
+
+            pos.insert(pos.begin(), 0.0f);
+            cols.insert(cols.begin(), lastColor);
         }
-        else pos.front() = 0.0f;
+        else {
+            pos.front() = 0.0f;
+        }
 
         if (pos.back() < 0.999f) {
-            Color c = cols.back();
-            pos.push_back(1.0f); cols.push_back(c);
+            pos.push_back(1.0f);
+            cols.push_back(cols.back());
         }
-        else pos.back() = 1.0f;
+        else {
+            pos.back() = 1.0f;
+        }
 
         brush->SetInterpolationColors(cols.data(), pos.data(), (INT)cols.size());
     }
-    else if (!stops.empty()) {
-        brush->SetCenterColor(stops.back().color);
-        int c = 1; Color sc = stops.front().color;
+    else {
+        brush->SetCenterColor(Color::Black);
+        int c = 1; Color sc = Color::Black;
         brush->SetSurroundColors(&sc, &c);
     }
-
-    brush->SetWrapMode(WrapModeTileFlipXY);
+    brush->SetWrapMode(WrapModeClamp);
 
     return brush;
 }

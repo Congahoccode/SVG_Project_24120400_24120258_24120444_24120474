@@ -60,43 +60,46 @@ LinearGradientBrush* SVGLinearGradient::CreateBrush(const RectF& bounds) const
     auto* brush = new LinearGradientBrush(p1, p2, Color::Black, Color::White);
 
     Matrix m;
-    // 1. Gradient Transform
     if (!transform.IsIdentity()) {
         m.Multiply(const_cast<Matrix*>(&transform), MatrixOrderAppend);
     }
-    // 2. Map to Bounds
     if (!userSpace) {
         m.Translate(bounds.X, bounds.Y, MatrixOrderAppend);
         m.Scale(bounds.Width, bounds.Height, MatrixOrderAppend);
     }
     brush->MultiplyTransform(&m);
 
-    if (stops.size() >= 2) {
-        // Chuẩn hóa offset
+    // 2. Setup Color
+    if (stops.size() >= 1) {
         vector<SVGGradientStop> safeStops = stops;
-        float maxOff = 0;
-        for (auto& s : safeStops) { if (s.offset < maxOff) s.offset = maxOff; else maxOff = s.offset; }
 
-        vector<Color> cols; vector<REAL> pos;
-        for (const auto& s : safeStops) { cols.push_back(s.color); pos.push_back(s.offset); }
+        // Sắp xếp stops
+        std::sort(safeStops.begin(), safeStops.end(),
+            [](const SVGGradientStop& a, const SVGGradientStop& b) {
+                return a.offset < b.offset;
+            });
 
-        if (pos.front() > 0.001f) {
-            Color c = cols.front(); pos.insert(pos.begin(), 0.0f); cols.insert(cols.begin(), c);
+        vector<Color> cols;
+        vector<REAL> pos;
+
+        if (safeStops.front().offset > 0.001f) {
+            cols.push_back(safeStops.front().color);
+            pos.push_back(0.0f);
         }
-        else pos.front() = 0.0f;
 
-        if (pos.back() < 0.999f) {
-            Color c = cols.back(); pos.push_back(1.0f); cols.push_back(c);
+        // Add các điểm thực tế
+        for (const auto& s : safeStops) {
+            cols.push_back(s.color);
+            pos.push_back(s.offset);
         }
-        else pos.back() = 1.0f;
+        if (safeStops.back().offset < 0.999f) {
+            cols.push_back(safeStops.back().color);
+            pos.push_back(1.0f);
+        }
 
         brush->SetInterpolationColors(cols.data(), pos.data(), (INT)cols.size());
     }
-    else if (!stops.empty()) {
-        Color c = stops[0].color;
-        brush->SetLinearColors(c, c);
-    }
-
     brush->SetWrapMode(WrapModeTileFlipXY);
+
     return brush;
 }

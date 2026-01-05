@@ -58,6 +58,14 @@ static void AddArcToBezier(GraphicsPath& path, float x0, float y0, float rx, flo
     float delta = dAngle / segments;
     float t = 8.0f / 3.0f * sin(delta / 4.0f) * sin(delta / 4.0f) / sin(delta / 2.0f);
     float currentX = x0; float currentY = y0; float theta1 = startAngle;
+    float startTrueX = cosA * rx * cos(startAngle) - sinA * ry * sin(startAngle) + cx;
+    float startTrueY = sinA * rx * cos(startAngle) + cosA * ry * sin(startAngle) + cy;
+
+    if (abs(currentX - startTrueX) > 0.1f || abs(currentY - startTrueY) > 0.1f) {
+        path.AddLine(currentX, currentY, startTrueX, startTrueY);
+    }
+    currentX = startTrueX;
+    currentY = startTrueY;
     for (int i = 0; i < segments; ++i) {
         float theta2 = theta1 + delta;
         float cosTheta1 = cos(theta1); float sinTheta1 = sin(theta1);
@@ -82,18 +90,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
     path.SetFillMode(FillModeWinding);
 
     // Xử lý thuộc tính fill-rule
-    if (auto attrRule = node->first_attribute("fill-rule"))
-    {
-        string r = attrRule->value();
-        if (r == "evenodd")
-        {
-            path.SetFillMode(FillModeAlternate);
-        }
-        else if (r == "nonzero")
-        {
-            path.SetFillMode(FillModeWinding);
-        }
-    }
+    path.SetFillMode(fillRule);
 
     // Lấy dữ liệu đường dẫn (path data)
     rapidxml::xml_attribute<>* attr = node->first_attribute("d");
@@ -109,14 +106,9 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
 
     while (*ptr)
     {
-        // Bỏ qua khoảng trắng và dấu phẩy
         while (*ptr && strchr(" \t\n\r,", *ptr)) ptr++;
         if (!*ptr) break;
-
-        // Nếu là chữ cái thì đó là command mới, nếu không thì dùng command cũ (implicit repetition)
         if (isalpha(*ptr)) command = *ptr++;
-
-        // Helper lambda: Tính điểm điều khiển phản chiếu (cho lệnh S, T)
         auto ReflectControl = [&](float curX, float curY) -> PointF
             {
                 bool prevIsCurve = (lastCommand == 'C' || lastCommand == 'c' ||
@@ -133,7 +125,6 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
 
         switch (command)
         {
-            // --- Move To (M, m) ---
         case 'M':
         {
             float x = GetNextNumber(ptr);
@@ -142,8 +133,6 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
 
             current = startFig = lastControl = PointF(x, y);
             lastCommand = 'M';
-
-            // Sau lệnh Move, các tham số tiếp theo được hiểu là LineTo
             command = 'L';
             break;
         }
@@ -168,7 +157,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Line To (L, l) ---
+        // Line To (L, l)
         case 'L':
         {
             float x = GetNextNumber(ptr);
@@ -193,7 +182,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Horizontal Line (H, h) ---
+        // Horizontal Line (H, h)
         case 'H':
         {
             float x = GetNextNumber(ptr);
@@ -217,7 +206,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Vertical Line (V, v) ---
+        // Vertical Line (V, v)
         case 'V':
         {
             float y = GetNextNumber(ptr);
@@ -241,7 +230,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Cubic Bezier (C, c) ---
+        // Cubic Bezier (C, c)
         case 'C':
         {
             float x1 = GetNextNumber(ptr);
@@ -279,7 +268,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Smooth Cubic Bezier (S, s) ---
+        // Smooth Cubic Bezier (S, s)
         case 'S':
         {
             PointF c1 = ReflectControl(current.X, current.Y);
@@ -314,7 +303,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Quadratic Bezier (Q, q) - Converted to Cubic ---
+        // Quadratic Bezier (Q, q)
         case 'Q':
         {
             float x1 = GetNextNumber(ptr);
@@ -322,13 +311,12 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             float x = GetNextNumber(ptr);
             float y = GetNextNumber(ptr);
 
-            // Convert Quadratic control points to Cubic
             PointF c1(current.X + 2.0f / 3.0f * (x1 - current.X), current.Y + 2.0f / 3.0f * (y1 - current.Y));
             PointF c2(x + 2.0f / 3.0f * (x1 - x), y + 2.0f / 3.0f * (y1 - y));
 
             path.AddBezier(current, c1, c2, PointF(x, y));
 
-            lastControl = PointF(x1, y1); // Save original control point for reflection
+            lastControl = PointF(x1, y1);
             current = PointF(x, y);
             lastCommand = 'Q';
             break;
@@ -354,7 +342,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Smooth Quadratic Bezier (T, t) - Converted to Cubic ---
+        // Smooth Quadratic Bezier (T, t)
         case 'T':
         {
             float x = GetNextNumber(ptr);
@@ -391,7 +379,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Arc (A, a) ---
+        // Arc (A, a)
         case 'A':
         {
             float rx = GetNextNumber(ptr);
@@ -427,7 +415,7 @@ void SVGPath::Parse(rapidxml::xml_node<>* node)
             break;
         }
 
-        // --- Close Path (Z, z) ---
+        // Close Path (Z, z)
         case 'Z':
         case 'z':
         {

@@ -55,6 +55,7 @@ public:
     string href;
 
 protected:
+    Gdiplus::FillMode fillRule = Gdiplus::FillModeWinding;
     Brush* CreateFillBrush(const RectF& bounds);
     Pen* CreateStrokePen();
 
@@ -80,5 +81,5 @@ public:
     void ParseFillValue(const string& value);
     void ParseStrokeValue(const string& value);
     void ParseTransform(const string& value);
-    void ParseStyle(const string& style);
+    //void ParseStyle(const string& style);
 };
