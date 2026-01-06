@@ -125,6 +125,10 @@ void SVGElement::Parse(xml_node<>* node)
     if (attrs.count("fill")) ParseFillValue(attrs["fill"]);
     if (attrs.count("stroke")) ParseStrokeValue(attrs["stroke"]);
 
+    // --- Fill & Stroke (Màu sắc) ---
+    if (attrs.count("fill")) ParseFillValue(attrs["fill"]);
+    if (attrs.count("stroke")) ParseStrokeValue(attrs["stroke"]);
+
     // --- Opacity (Xử lý cẩn thận để tránh lỗi chồng màu) ---
     float baseOpacity = 1.0f;
     if (attrs.count("opacity")) {
